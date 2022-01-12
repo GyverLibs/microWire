@@ -27,6 +27,9 @@
 #include <Arduino.h>
 #include "pins_arduino.h"
 
+// этот символ необходим для совместимости с Wire.h. его значение является максимумом для параметра uint8_t используемого в оригинальной библиотеке.
+#define BUFFER_LENGTH 255
+
 class TwoWire {
 public:
     void begin(void);            				// инициализация шины
@@ -34,11 +37,23 @@ public:
     void beginTransmission(uint8_t address); 	// открыть соединение (для записи данных)
     uint8_t endTransmission(bool stop);  		// закрыть соединение , произвести stop или restart (по умолчанию - stop)
     uint8_t endTransmission(void);  			// закрыть соединение , произвести stop
-    void write(uint8_t data);                	// отправить в шину байт данных , отправка производится сразу , формат - byte "unsigned char"
-    void requestFrom(uint8_t address , uint8_t length , bool stop); //открыть соединение и запросить данные от устройства, отпустить или удержать шину
-    void requestFrom(uint8_t address , uint8_t length);  			//открыть соединение и запросить данные от устройства, отпустить шину
+    size_t write(uint8_t data);                	// отправить в шину байт данных , отправка производится сразу , формат - byte "unsigned char"
+    uint8_t requestFrom(uint8_t address , uint8_t length , bool stop); //открыть соединение и запросить данные от устройства, отпустить или удержать шину
+    uint8_t requestFrom(uint8_t address , uint8_t length);  			//открыть соединение и запросить данные от устройства, отпустить шину
     uint8_t read(void);                      	// прочитать байт , БУФЕРА НЕТ!!! , читайте сразу все запрошенные байты , stop или restart после чтения последнего байта, настраивается в requestFrom
     uint8_t available(void);                 	// вернет количество оставшихся для чтения байт
+	// функции добавлены для совместимости с Wire API 
+    inline void beginTransmission(int address){beginTransmission((uint8_t)address);}
+    uint8_t requestFrom(uint8_t address, uint8_t quantity, uint8_t sendStop);
+    uint8_t requestFrom(uint8_t address, uint8_t quantity, uint32_t iaddress, uint8_t isize, uint8_t sendStop);
+    uint8_t requestFrom(int address, int quantity);
+    uint8_t requestFrom(int address, int quantity, int sendStop);
+    size_t write(const uint8_t *buffer, size_t size);
+    inline size_t write(unsigned long n) { return write((uint8_t)n); }
+    inline size_t write(long n) { return write((uint8_t)n); }
+    inline size_t write(unsigned int n) { return write((uint8_t)n); }
+    inline size_t write(int n) { return write((uint8_t)n); }
+	
 private:
     uint8_t _requested_bytes = 0;            	// переменная хранит количество запрошенных и непрочитанных байт
     bool _address_nack = false;					// Флаг для отслеживания ошибки при передаче адреса

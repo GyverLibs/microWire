@@ -39,7 +39,7 @@ uint8_t TwoWire::endTransmission(bool stop)
     } return 0;										// Если все ОК - возвращаем '0'
 }
 
-void TwoWire::write(uint8_t data)
+size_t TwoWire::write(uint8_t data)
 {													// Прямая отправка байта на шину
     TWDR = data;									// Записать данные в data - регистр
     TWCR = _BV(TWEN) | _BV(TWINT);				    // Запустить передачу
@@ -47,6 +47,7 @@ void TwoWire::write(uint8_t data)
     uint8_t _bus_status = TWSR & 0xF8;				// Чтение статуса шины
     if(_bus_status == 0x20) _address_nack = true;	// SLA + W + NACK ? - нет ответа при передаче адреса
     if(_bus_status == 0x30) _data_nack = true;		// BYTE + NACK ? - нет ответа при передаче данных
+	return 1;                                       // для совместимости с Wire API
 }
 
 uint8_t TwoWire::available() 
@@ -69,17 +70,61 @@ uint8_t TwoWire::read()
     return TWDR;									// Вернуть принятый ранее байт из data - регистра
 }
 
-void TwoWire::requestFrom(uint8_t address , uint8_t length) 
+uint8_t TwoWire::requestFrom(uint8_t address , uint8_t length) 
 {  													// Запрос n-го кол-ва байт от ведомого устройства и отпускание шины
-    TwoWire::requestFrom(address , length , true); 
+    return TwoWire::requestFrom(address , length , true); 
 }
 
-void TwoWire::requestFrom(uint8_t address , uint8_t length , bool stop) 
+uint8_t TwoWire::requestFrom(uint8_t address , uint8_t length , bool stop) 
 {  													// Запрос n-го кол-ва байт от ведомого устройства (Читайте все байты сразу!!!)
     _stop_after_request = stop; 					// stop или restart после чтения последнего байта
     _requested_bytes = length;						// Записать в переменную количество запрошенных байт
     TwoWire::start();								// Начать работу на шине
     TwoWire::write((address << 1) | 0x1);			// Отправить устройству адрес + бит "read" 
+	return length;									// вернуть длину сообщения для совместимости с оригинальной Wire API
+}
+
+uint8_t TwoWire::requestFrom(uint8_t address, uint8_t quantity, uint8_t sendStop){
+	return requestFrom(address , quantity , sendStop!=0);
+}
+
+uint8_t TwoWire::requestFrom(uint8_t address, uint8_t quantity, uint32_t iaddress, uint8_t isize, uint8_t sendStop){
+	if (isize > 0) {
+	  // send internal address; this mode allows sending a repeated start to access
+	  // some devices' internal registers. This function is executed by the hardware
+	  // TWI module on other processors (for example Due's TWI_IADR and TWI_MMR registers)
+
+	  beginTransmission(address);
+
+	  // the maximum size of internal address is 4 bytes
+	  // не понятно почему ограничение размерности регистра в оригинальной Wire API в 3 байта
+	  if (isize > 4){
+		isize = 4;
+	  }
+
+	  // write internal register address - most significant byte first
+	  while (isize-- > 0)
+		write((uint8_t)(iaddress >> (isize*8)));
+	  endTransmission(false);
+    }
+
+   return requestFrom(address, quantity, sendStop);
+}
+
+uint8_t TwoWire::requestFrom(int address, int quantity)
+{
+  return requestFrom((uint8_t)address, (uint8_t)quantity, (uint8_t)true);
+}
+
+uint8_t TwoWire::requestFrom(int address, int quantity, int sendStop)
+{
+  return requestFrom((uint8_t)address, (uint8_t)quantity, (uint8_t)sendStop);
+}
+
+size_t TwoWire::write(const uint8_t *buffer, size_t size){
+	for (size_t i = 0 ; i < size; ++i)
+		write(buffer[i]);
+	return size;
 }
 
 void TwoWire::start()
