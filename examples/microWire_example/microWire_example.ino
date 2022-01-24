@@ -27,7 +27,7 @@ void setup() {
   Wire.write(highByte(cellAddress));    // отправляем старший байт адреса  первой ячейки
   Wire.write(lowByte(cellAddress));     // отправляем младший байт адреса  первой ячейки
   Wire.endTransmission();               // завершаем передачу
-  Wire.requestFrom(chipAddress , 2);    // запрашиваем свои 2 байта данных
+  Wire.requestFrom(chipAddress, (uint8_t)2);    // запрашиваем свои 2 байта данных
   while (Wire.available()) {            // пока запрошенные данные не кончились
     Serial.println(Wire.read());        // читаем и выводим их
   }
