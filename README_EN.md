@@ -1,3 +1,5 @@
+This is an automatic translation, may be incorrect in some places. See sources and examples!
+
 #microWire
 Lightweight library with a standard set of tools for working with hardware I2C
 - Lighten your code by simply replacing Wire.h with microWire.h
