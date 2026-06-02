@@ -1,116 +1,122 @@
-This is an automatic translation, may be incorrect in some places. See sources and examples!
+This is an automatic translation and may be incorrect in some places. See the source README and examples for authoritative information.
 
-# Microwire
-A light library with a standard set of tools for working with hardware i2c
-- facilitate your code with a simple replacement of wire.h with microwire.h
-- Atmega168/328p (Nano, UNO, Mini), Atmega32u4 (Leonardo, Micro), Atmega2560 (Mega)
+[![latest](https://img.shields.io/github/v/release/GyverLibs/microWire.svg?color=brightgreen)](https://github.com/GyverLibs/microWire/releases/latest/download/microWire.zip)
+[![PIO](https://badges.registry.platformio.org/packages/gyverlibs/library/microWire.svg)](https://registry.platformio.org/libraries/gyverlibs/microWire)
+[![Foo](https://img.shields.io/badge/Website-AlexGyver.ru-blue.svg?style=flat-square)](https://alexgyver.ru/)
+[![Foo](https://img.shields.io/badge/%E2%82%BD%24%E2%82%AC%20%D0%9F%D0%BE%D0%B4%D0%B4%D0%B5%D1%80%D0%B6%D0%B0%D1%82%D1%8C-%D0%B0%D0%B2%D1%82%D0%BE%D1%80%D0%B0-orange.svg?style=flat-square)](https://alexgyver.ru/support_alex/)
+[![Foo](https://img.shields.io/badge/README-ENGLISH-blueviolet.svg?style=flat-square)](https://github-com.translate.goog/GyverLibs/microWire?_x_tr_sl=ru&_x_tr_tl=en)  
 
-## compatibility
-AVR Atmega168/328p (Nano, UNO, Mini), Atmega32u4 (Leonardo, Micro), Atmega2560 (Mega)
+[![Foo](https://img.shields.io/badge/ПОДПИСАТЬСЯ-НА%20ОБНОВЛЕНИЯ-brightgreen.svg?style=social&logo=telegram&color=blue)](https://t.me/GyverLibs)
 
-## Content
-- [installation] (# Install)
-- [initialization] (#init)
-- [use] (#usage)
-- [Example] (# Example)
-- [versions] (#varsions)
-- [bugs and feedback] (#fedback)
+# microWire
+Lightweight library with a standard set of tools for working with I2C hardware
+- Make your code easier by simply replacing Wire.h with microWire. h h
+- ATmega168/328p (nano,uno,mini), ATmega32u4 (leonardo,micro) , ATmega2560 (mega)
 
-<a id="install"> </a>
+### Compatibility
+AVR ATmega168/328p (nano,uno,mini), ATmega32u4 (leonardo,micro), ATmega2560 (mega)
+
+## Contents
+- [Installation](#install)
+- [Initialization](#init)
+- [Use of use](#usage)
+- [Example](#example)
+- [Versions](#versions)
+- [Bugs and feedback](#feedback)
+
+<a id="install"></a>
 ## Installation
-- The library can be found by the name ** microwire ** and installed through the library manager in:
-    - Arduino ide
-    - Arduino ide v2
-    - Platformio
-- [download library] (https://github.com/gyverlibs/microwire/archive/refs/heads/main.zip). Zip archive for manual installation:
-    - unpack and put in * C: \ Program Files (X86) \ Arduino \ Libraries * (Windows X64)
-    - unpack and put in * C: \ Program Files \ Arduino \ Libraries * (Windows X32)
-    - unpack and put in *documents/arduino/libraries/ *
-    - (Arduino id) Automatic installation from. Zip: * sketch/connect the library/add .Zip library ... * and specify downloaded archive
-- Read more detailed instructions for installing libraries [here] (https://alexgyver.ru/arduino-first/#%D0%A3%D1%81%D1%82%D0%B0%BD%D0%BE%BE%BE%BED0%B2%D0%BA%D0%B0_%D0%B1%D0%B8%D0%B1%D0%BB%D0%B8%D0%BE%D1%82%D0%B5%D0%BA)
+- The library can be found under the name **microWire** and installed through the library manager in:
+    - Arduino IDE
+    - Arduino IDE v2
+    - PlatformIO
+- [Download the library](https://github.com/GyverLibs/microWire/archive/refs/heads/main.zip).zip archive for manual installation:
+    - Unpack and put in *C:\Program Files (x86)\Arduino\libraries* (Windows x64)
+    - Unpack and put in *C:\Program Files\Arduino\libraries* (Windows x32)
+    - Unpack and put in *Documents/Arduino/libraries/ *
+    - (Arduino IDE) Automatic installation from .zip: *Sketch/Connect library/Add .ZIP library...* and specify downloaded archive
+- Read more detailed instructions for installing libraries[here](https://alexgyver.ru/arduino-first/#%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0_%D0%B1%D0%B8%D0%B1%D0%BB%D0%B8%D0%BE%D1%82%D0%B5%D0%BA)
 ### Update
-- I recommend always updating the library: errors and bugs are corrected in the new versions, as well as optimization and new features are added
-- through the IDE library manager: find the library how to install and click "update"
-- Manually: ** remove the folder with the old version **, and then put a new one in its place.“Replacement” cannot be done: sometimes in new versions, files that remain when replacing are deleted and can lead to errors!
+- I recommend always updating the library: new versions fix errors and bugs, as well as optimize and add new features.
+- Through the library manager IDE: find the library as when installing and click "Update"
+- Manually: **Delete the folder with the old version** and then put the new one in its place. “Replacement” can not be done: sometimes new versions delete files that will remain when replaced and can lead to errors!
 
+<a id="init"></a>
+## Initialization
+No.
 
-<a id="init"> </a>
-## initialization
-No
+<a id="usage"></a>
+## Use of use
+```cpp
+void begin(void);            				// tyre initialization
+void setClock(uint32_t clock);       		// manual setting of the bus frequency 31-900 kHz (in hertz)
+void beginTransmission(uint8_t address); 	// Open the connection (to record data)
+uint8_t endTransmission(bool stop);  		// Close the connection, make a stop or restart (by default - stop)
+uint8_t endTransmission(void);  			// close the connection, make a stop
+void write(uint8_t data);                	// send bytes of data to the bus, sending is done immediately, format - byte "unsigned char"
+void requestFrom(uint8_t address , uint8_t length , bool stop); //open the connection and request data from the device, release or hold the bus
+void requestFrom(uint8_t address , uint8_t length);  			//open the connection and request data from the device, release the bus
+uint8_t read(void);                      	// read byte, Buffer No!!!, read all requested bytes at once, stop or restart after reading the last byte, configured in requestFrom
+uint8_t available(void);                 	// Return the number of bytes left to read
+```
 
-<a id="usage"> </a>
-## Usage
-`` `CPP
-VOID Begin (VOID);// initialization of the tire
-VOID setclock (Uint32_T Clock);// manual tire frequency installation 31-900 khz (in Hertz)
-VOID BeginTransMission (Uint8_T Address);// Open the connection (for data recording)
-Uint8_T EndtransMission (Bool Stop);// Close the connection, produce stop or restart (by default - Stop)
-Uint8_T EndtransMission (VOID);// Close the connection, make stop
-VOID Write (Uint8_T DATA);// Send bytes of the bytes of data, sending is carried out immediately, format - byte "Unsigned char"
-VOID Requestfrom (Uint8_T Address, Uint8_t Length, Bool Stop);// Open the connection and request data from the device, release or hold the tire
-VOID Requestfrom (Uint8_T Address, Uint8_t Length);// Open the connection and request data from the device, release the tire
-uint8_t Read (VOID);// read a byte, no buffer !!!, read all the requested bytes, Stop or Restart after reading the last byte, is tuned in REquestfrom
-Uint8_t Available (VOID);// will return the number of left bytes remaining
-`` `
-
-<a id="EXAMPLE"> </a>
+<a id="example"></a>
 ## Example
-`` `CPP
-/ * Example of recording and reading data in i2C - Eeprom "AT24C32" */
+```cpp
+/* Пример записи и чтения данных в I2C - EEPROM "AT24C32" */
 
-// #include <wire.h> // Replace wire.hon microwire.h
-#include <microwire.h>
+// #include <Wire.h> // Replace Wire.h with microWire. h h
+#include <microWire.h>
 
-uint8_t chipaddress = 0x57;// device address (use i2c Scaner to determine)
-Uint16_T CELLADDRESS = 3064;// Address of the first cell where we will write and where to read
-uint8_t data_0 = 115;// data that we will write in EEPROM (compare with this number when reading)
+uint8_t chipAddress = 0x57; // Device address (use i2c scaner to determine)
+uint16_t cellAddress = 3064; // The address of the first cell, where we will write and where to read
+uint8_t data_0 = 115; // data that we write in EEPROM (compare with this number when reading )
 uint8_t data_1 = 14;
 
-VOID setup () {
-  Serial.Begin (9600);
-  Wire.begin ();
+void setup() {
+  Serial.begin(9600);
+  Wire.begin();
 
-  / * record */
-  Wire.BegintransMission (Chipaddress);// Start gear with the device, call at the address
-  Wire.write (Highbyte (Celladdress));// Send the senior byte of the first address of the cell
-  Wire.write (Lowbyte (Celladdress));// Send the younger byte the first address of the cell
-  Wire.write (Data_0);// Parch the byte data
-  Wire.write (Data_1);// Parrating another byte of data
-  Wire.endtransmission ();// We finish the program
+  /* запись */
+  Wire.beginTransmission(chipAddress);  // Start transfer with the device, call to the address
+  Wire.write(highByte(cellAddress));    // Send the highest byte of the first cell address
+  Wire.write(lowByte(cellAddress));     // Send the junior byte of the cell's first address
+  Wire.write(data_0);                   // drop off
+  Wire.write(data_1);                   // We're unloading another byte of data.
+  Wire.endTransmission();               // finalize
 
-  DELAY (50);// We will wait
+  delay(50);                            // wait
 
-  / * Reading */
-  Wire.BegintransMission (Chipaddress);// Start gear with the device, call at the address
-  Wire.write (Highbyte (Celladdress));// Send the senior byte of the address of the first cell
-  Wire.write (Lowbyte (Celladdress));// Send the younger byte the address of the first cell
-  Wire.endtransmission ();// We finish the program
-  Wire.requestfrom (chipaddress, 2);// Request our 2 bytes of data
-  While (wire.available ()) {// Until the requested data has ended
-    Serial.println (wire.read ());// read and bring them out
+  /* чтение */
+  Wire.beginTransmission(chipAddress);  // Start transfer with the device, call to the address
+  Wire.write(highByte(cellAddress));    // Send the highest byte of the address of the first cell
+  Wire.write(lowByte(cellAddress));     // Send a minor byte of the address of the first cell
+  Wire.endTransmission();               // finalize
+  Wire.requestFrom(chipAddress , 2);    // request your 2 bytes of data
+  while (Wire.available()) {            // until the requested data is exhausted
+    Serial.println(Wire.read());        // read and deduce them
   }
 }
 
-VOID loop () {
+void loop() {
 }
-`` `
+```
 
-<a id="versions"> </a>
-## versions
-- V2.1
-- V2.2 from Firexx - added functions for full compatibility with API Wire
+<a id="versions"></a>
+## Versions
+- v2.1
+- v2.2 from firexx - added features for full compatibility with the Wire API
 
-<a id="feedback"> </a>
-## bugs and feedback
-Create ** Issue ** when you find the bugs, and better immediately write to the mail [alex@alexgyver.ru] (mailto: alex@alexgyver.ru)
-The library is open for refinement and your ** pull Request ** 'ow!
+<a id="feedback"></a>
+## Bugs and feedback
+If you find bugs, create **Issue**, or better write to the mail immediately.[alex@alexgyver.ru](mailto:alex@alexgyver.ru)  
+The library is open for revision and your **Pull Requests*!
 
-
-When reporting about bugs or incorrect work of the library, it is necessary to indicate:
-- The version of the library
-- What is MK used
+When reporting bugs or incorrect work of the library, it is necessary to specify:
+- Library version
+- What is used by the IC
 - SDK version (for ESP)
-- version of Arduino ide
-- whether the built -in examples work correctly, in which the functions and designs are used, leading to a bug in your code
-- what code has been loaded, what work was expected from it and how it works in reality
-- Ideally, attach the minimum code in which the bug is observed.Not a canvas of a thousand lines, but a minimum code
+- Arduino IDE version
+- Are embedded examples that use features and designs that cause bugs in your code working correctly?
+- What code was downloaded, what work was expected from it and how it works in reality
+- Ideally, attach the minimum code in which the bug is observed. Not a canvas of a thousand lines, but a minimum code.
