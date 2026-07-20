@@ -1,79 +1,148 @@
 ﻿#include "microWire.h"
 
-void TwoWire::begin() {          // Инициализация шины в роли master
-    pinMode(SDA, INPUT_PULLUP);  // Подтяжка шины
-    pinMode(SCL, INPUT_PULLUP);  // Подтяжка шины
-    TWBR = 72;                   // Стандартная скорость - 100kHz
-    TWSR = 0;                    // Делитель - /1 , статус - 0;
+enum : uint8_t {
+    TWI_ST_SLA_W_NACK = 0x20,
+    TWI_ST_DATA_NACK = 0x30,
+    TWI_ST_SLA_R_NACK = 0x48
+};
+
+#define TWI_CLEAR_FLAGS() do { _address_nack = false; _data_nack = false; } while (0)
+#define TWI_FAIL(flag)    do { (flag) = true; _requested_bytes = 0; } while (0)
+
+// Wait for TWINT with ~40ms timeout @16MHz
+// On timeout: reset TWI hardware and return 0
+static uint8_t __attribute__((noinline)) twiWaitTwintOrReset() {
+    uint16_t n = 0;
+    do {
+        if (TWCR & _BV(TWINT)) return 1;
+    } while (--n);
+
+    TWCR = 0;
+    TWCR = _BV(TWEN);
+    return 0;
 }
 
-void TwoWire::setClock(uint32_t clock) {      // Функция установки частоты шины 31-900 kHz (в герцах)
-    TWBR = (((long)F_CPU / clock) - 16) / 2;  // Расчет baudrate - регистра
+// Write command to TWCR and wait for completion
+static uint8_t __attribute__((noinline)) twiCommand(uint8_t cr) {
+    TWCR = cr;
+    return twiWaitTwintOrReset();
 }
 
-void TwoWire::beginTransmission(uint8_t address) {  // Начать передачу (для записи данных)
-    TwoWire::start();                               // Старт
-    TwoWire::write(address << 1);                   // Отправка slave - устройству адреса с битом "write"
+void TwoWire::begin() {
+#if defined(MICROWIRE_USE_PINMODE)
+    pinMode(SDA, INPUT_PULLUP);
+    pinMode(SCL, INPUT_PULLUP);
+
+#elif defined(MICROWIRE_TARGET_328P)
+    // ATmega168/328P: SDA=PC4, SCL=PC5
+    DDRC &= (uint8_t)~(_BV(4) | _BV(5));
+    PORTC |= (uint8_t)(_BV(4) | _BV(5));
+
+#elif defined(MICROWIRE_TARGET_32U4) || defined(MICROWIRE_TARGET_2560)
+    // ATmega32U4: SDA=PD1, SCL=PD0
+    // ATmega2560: SDA=PD1 (D20), SCL=PD0 (D21)
+    DDRD &= (uint8_t)~(_BV(1) | _BV(0));
+    PORTD |= (uint8_t)(_BV(1) | _BV(0));
+
+#else
+    pinMode(SDA, INPUT_PULLUP);
+    pinMode(SCL, INPUT_PULLUP);
+#endif
+
+    TWBR = 72;
+    TWSR = 0;
 }
 
-uint8_t TwoWire::endTransmission(void) {  // Завершить передачу и отпустить шину
-    return TwoWire::endTransmission(true);
+void TwoWire::setClock(uint32_t clock) {
+    TWBR = (((long)F_CPU / clock) - 16) / 2;
 }
 
-uint8_t TwoWire::endTransmission(bool stop) {  // Завершить передачу (после записи данных)
-    if (stop) TwoWire::stop();                 // Если задано stop или аргумент пуст - отпустить шину
-    else TwoWire::start();                     // Иначе - restart (другой master на шине не сможет влезть между сообщениями)
-    if (_address_nack) {                       // Если нет ответа при передаче адреса
-        _address_nack = false;                 // Обнуляем оба флага
-        _data_nack = false;                    // Обнуляем оба флага
-        return 2;                              // Возвращаем '2'
+void TwoWire::beginTransmission(uint8_t address) {
+    TWI_CLEAR_FLAGS();
+    start();
+    if (!_address_nack) write(address << 1);
+}
+
+uint8_t TwoWire::endTransmission(void) {
+    return endTransmission(true);
+}
+
+// Returns: 0=OK, 2=address NACK, 3=data NACK
+uint8_t TwoWire::endTransmission(bool stop) {
+    if (stop) this->stop();
+    else start();
+
+    uint8_t r = _address_nack ? 2 : (_data_nack ? 3 : 0);
+    TWI_CLEAR_FLAGS();
+    return r;
+}
+
+// Status 0x20 = SLA+W NACK, 0x48 = SLA+R NACK, 0x30 = data NACK
+size_t TwoWire::write(uint8_t data) {
+    TWDR = data;
+
+    if (!twiCommand((uint8_t)(_BV(TWEN) | _BV(TWINT)))) {
+        TWI_FAIL(_data_nack);
+        return 1;
     }
-    if (_data_nack) {           // Если нет ответа при передаче данных
-        _address_nack = false;  // Обнуляем оба флага
-        _data_nack = false;     // Обнуляем оба флага
-        return 3;               // Возвращаем '2'
+
+    switch ((uint8_t)(TWSR & 0xF8)) {
+    case TWI_ST_SLA_W_NACK:
+    case TWI_ST_SLA_R_NACK:
+        TWI_FAIL(_address_nack);
+        break;
+
+    case TWI_ST_DATA_NACK:
+        TWI_FAIL(_data_nack);
+        break;
+
+    default:
+        break;
     }
-    return 0;  // Если все ОК - возвращаем '0'
+
+    return 1;
 }
 
-size_t TwoWire::write(uint8_t data) {               // Прямая отправка байта на шину
-    TWDR = data;                                    // Записать данные в data - регистр
-    TWCR = _BV(TWEN) | _BV(TWINT);                  // Запустить передачу
-    while (!(TWCR & _BV(TWINT)));                   // Дождаться окончания
-    uint8_t _bus_status = TWSR & 0xF8;              // Чтение статуса шины
-    if (_bus_status == 0x20) _address_nack = true;  // SLA + W + NACK ? - нет ответа при передаче адреса
-    if (_bus_status == 0x30) _data_nack = true;     // BYTE + NACK ? - нет ответа при передаче данных
-    return 1;                                       // для совместимости с Wire API
+uint8_t TwoWire::available() {
+    return _requested_bytes;
 }
 
-uint8_t TwoWire::available() {  // Вернуть оставшееся количество запрошенных для чтения байт
-    return _requested_bytes;    // Это содержимое этой переменной
-}
+// Underflow guard: returns 0 if called beyond requestFrom length
+uint8_t TwoWire::read() {
+    if (_requested_bytes == 0) return 0;
 
-uint8_t TwoWire::read() {                           // Прямое чтение байта из шины после запроса
-    if (--_requested_bytes) {                       // Если байт не последний
-        TWCR = _BV(TWEN) | _BV(TWINT) | _BV(TWEA);  // Запустить чтение шины (с подтверждением "ACK")
-        while (!(TWCR & _BV(TWINT)));               // Дождаться окончания приема данных
-        return TWDR;                                // Вернуть принятые данные , это содержимое data - регистра
+    if (--_requested_bytes) {
+        if (!twiCommand((uint8_t)(_BV(TWEN) | _BV(TWINT) | _BV(TWEA)))) {
+            TWI_FAIL(_data_nack);
+            return 0;
+        }
+        return TWDR;
     }
-    _requested_bytes = 0;                      // Если читаем последний байт
-    TWCR = _BV(TWEN) | _BV(TWINT);             // Запустить чтение шины (БЕЗ подтверждения "NACK")
-    while (!(TWCR & _BV(TWINT)));              // Дождаться окончания приема данных
-    if (_stop_after_request) TwoWire::stop();  // Если в requestFrom не задан аргумент stop , или stop задан как true - отпустить шину
-    else TwoWire::start();                     // Иначе - restart (другой master на шине не сможет влезть между сообщениями)
-    return TWDR;                               // Вернуть принятый ранее байт из data - регистра
+
+    if (!twiCommand((uint8_t)(_BV(TWEN) | _BV(TWINT)))) {
+        TWI_FAIL(_data_nack);
+        return 0;
+    }
+
+    if (_stop_after_request) this->stop();
+    else start();
+    return TWDR;
 }
 
-uint8_t TwoWire::requestFrom(uint8_t address, uint8_t length) {  // Запрос n-го кол-ва байт от ведомого устройства и отпускание шины
-    return TwoWire::requestFrom(address, length, true);
+uint8_t TwoWire::requestFrom(uint8_t address, uint8_t length) {
+    return requestFrom(address, length, true);
 }
 
-uint8_t TwoWire::requestFrom(uint8_t address, uint8_t length, bool stop) {  // Запрос n-го кол-ва байт от ведомого устройства (Читайте все байты сразу!!!)
-    _stop_after_request = stop;                                             // stop или restart после чтения последнего байта
-    _requested_bytes = length;                                              // Записать в переменную количество запрошенных байт
-    TwoWire::start();                                                       // Начать работу на шине
-    TwoWire::write((address << 1) | 0x1);                                   // Отправить устройству адрес + бит "read"
-    return length;                                                          // вернуть длину сообщения для совместимости с оригинальной Wire API
+uint8_t TwoWire::requestFrom(uint8_t address, uint8_t length, bool stop) {
+    TWI_CLEAR_FLAGS();
+
+    _stop_after_request = stop;
+    _requested_bytes = length;
+
+    start();
+    if (!_address_nack) write((uint8_t)((address << 1) | 0x1));
+
+    return length;
 }
 
 uint8_t TwoWire::requestFrom(uint8_t address, uint8_t quantity, uint8_t sendStop) {
@@ -82,24 +151,11 @@ uint8_t TwoWire::requestFrom(uint8_t address, uint8_t quantity, uint8_t sendStop
 
 uint8_t TwoWire::requestFrom(uint8_t address, uint8_t quantity, uint32_t iaddress, uint8_t isize, uint8_t sendStop) {
     if (isize > 0) {
-        // send internal address; this mode allows sending a repeated start to access
-        // some devices' internal registers. This function is executed by the hardware
-        // TWI module on other processors (for example Due's TWI_IADR and TWI_MMR registers)
-
         beginTransmission(address);
-
-        // the maximum size of internal address is 4 bytes
-        // не понятно почему ограничение размерности регистра в оригинальной Wire API в 3 байта
-        if (isize > 4) {
-            isize = 4;
-        }
-
-        // write internal register address - most significant byte first
-        while (isize-- > 0)
-            write((uint8_t)(iaddress >> (isize * 8)));
+        if (isize > 4) isize = 4;
+        while (isize-- > 0) write((uint8_t)(iaddress >> (isize * 8)));
         endTransmission(false);
     }
-
     return requestFrom(address, quantity, sendStop);
 }
 
@@ -111,19 +167,22 @@ uint8_t TwoWire::requestFrom(int address, int quantity, int sendStop) {
     return requestFrom((uint8_t)address, (uint8_t)quantity, (uint8_t)sendStop);
 }
 
-size_t TwoWire::write(const uint8_t *buffer, size_t size) {
-    for (size_t i = 0; i < size; ++i)
-        write(buffer[i]);
+size_t TwoWire::write(const uint8_t* buffer, size_t size) {
+    for (size_t i = 0; i < size; ++i) write(buffer[i]);
     return size;
 }
 
-void TwoWire::start() {                          // сервисная функция с нее начинается любая работа с шиной
-    TWCR = _BV(TWSTA) | _BV(TWEN) | _BV(TWINT);  // start + TwoWire enable + установка флага "выполнить задачу"
-    while (!(TWCR & _BV(TWINT)));                // Ожидание завершения
+void TwoWire::start() {
+    if (!twiCommand((uint8_t)(_BV(TWSTA) | _BV(TWEN) | _BV(TWINT)))) {
+        TWI_FAIL(_address_nack);
+    }
 }
 
-void TwoWire::stop() {                           // сервисная функция ей заканчивается работа с шиной
-    TWCR = _BV(TWSTO) | _BV(TWEN) | _BV(TWINT);  // stop + TwoWire enable + установка флага "выполнить задачу"
+void TwoWire::stop() {
+    TWCR = (uint8_t)(_BV(TWSTO) | _BV(TWEN) | _BV(TWINT));
 }
 
 TwoWire Wire = TwoWire();
+
+#undef TWI_CLEAR_FLAGS
+#undef TWI_FAIL
