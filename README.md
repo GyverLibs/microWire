@@ -6,6 +6,9 @@
 
 [![Foo](https://img.shields.io/badge/ПОДПИСАТЬСЯ-НА%20ОБНОВЛЕНИЯ-brightgreen.svg?style=social&logo=telegram&color=blue)](https://t.me/GyverLibs)
 
+> [!WARNING]
+> Библиотека архивирована, используйте новую версию - [uWire](https://github.com/GyverLibs/uWire)
+
 # microWire
 Лёгкая библиотека со стандартным набором инструментов для работы с аппаратным I2C
 - Облегчайте свой код простой заменой Wire.h на microWire.h
